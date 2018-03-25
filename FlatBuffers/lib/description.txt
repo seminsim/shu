@@ -1,0 +1,4 @@
+These library files are
+  compiled from FlatBuffers\src\flatbuffers-1.8.0\net\FlatBuffers with Visual Studio
+  and copied from FlatBuffers\src\flatbuffers-1.8.0\net\FlatBuffers\bin
+.
