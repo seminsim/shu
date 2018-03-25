@@ -14,3 +14,4 @@ pkg/*
 src/*
 !src/server/
 !src/dummyClient/
+!src/shuNet/
