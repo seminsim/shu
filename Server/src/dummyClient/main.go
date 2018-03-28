@@ -3,49 +3,40 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"net"
 	"os"
+	"shuNet"
 )
 
 const (
 	CONN_HOST = "localhost"
-	CONN_PORT = "3333"
-	CONN_TYPE = "tcp"
+	CONN_PORT = 3333
 )
 
 func main() {
-	conn, err := net.Dial(CONN_TYPE, CONN_HOST+":"+CONN_PORT)
-	if err != nil {
-		fmt.Println("Error listening:", err.Error())
-		os.Exit(1)
-	}
-
-	defer conn.Close()
-	fmt.Println("Connected on " + CONN_HOST + ":" + CONN_PORT)
-
-	go handleRequest(conn)
+	client := shuNet.NewClient(shuNet.NewPacketHandler(onConn, onRecv, onDisc))
+	client.Dial(CONN_HOST, CONN_PORT)
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		str := scanner.Text()
-		fmt.Println(str)
-		conn.Write([]byte(str))
+		if str == "exit" {
+			break
+		}
+		client.Write([]byte(str))
 	}
+
+	client.Close()
 }
 
-// Handles incoming requests.
-func handleRequest(conn net.Conn) {
+func onConn(socket *shuNet.Socket) {
+	fmt.Println("OnConnect ", socket)
+}
 
-	buf := make([]byte, 1024)
+func onRecv(socket *shuNet.Socket, data []byte) error {
+	fmt.Println("OnRecv size:", len(data), " ", string(data))
+	return nil
+}
 
-	for {
-		// Read the incoming connection into the buffer.
-		_, err := conn.Read(buf)
-		if err != nil {
-			fmt.Println("Error reading:", err.Error())
-			return
-		}
-
-		fmt.Println(string(buf))
-	}
+func onDisc(socket *shuNet.Socket, err error) {
+	fmt.Println("OnDisconnect ", err)
 }

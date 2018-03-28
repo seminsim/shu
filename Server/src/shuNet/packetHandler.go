@@ -2,7 +2,6 @@ package shuNet
 
 import (
 	"encoding/binary"
-	"net"
 )
 
 const (
@@ -12,9 +11,9 @@ const (
 
 // PacketHandler is a Shu normal packetHandler.
 type PacketHandler struct {
-	_onConn func(net.Conn)
-	_onRecv func(net.Conn, []byte) error
-	_onDisc func(net.Conn, error)
+	_onConn func(*Socket)
+	_onRecv func(*Socket, []byte) error
+	_onDisc func(*Socket, error)
 
 	process int
 	sizeBuf []byte
@@ -24,9 +23,9 @@ type PacketHandler struct {
 }
 
 // NewPacketHandler makes new PacketHAndler
-func NewPacketHandler(onConn func(net.Conn),
-	onRecv func(net.Conn, []byte) error,
-	onDisc func(net.Conn, error)) *PacketHandler {
+func NewPacketHandler(onConn func(*Socket),
+	onRecv func(*Socket, []byte) error,
+	onDisc func(*Socket, error)) *PacketHandler {
 	handler := &PacketHandler{}
 	handler._onConn = onConn
 	handler._onRecv = onRecv
@@ -36,8 +35,8 @@ func NewPacketHandler(onConn func(net.Conn),
 	return handler
 }
 
-func (p *PacketHandler) onConn(conn net.Conn) {
-	p._onConn(conn)
+func (p *PacketHandler) onConn(socket *Socket) {
+	p._onConn(socket)
 }
 
 type errorString struct {
@@ -48,7 +47,7 @@ func (e *errorString) Error() string {
 	return e.s
 }
 
-func (p *PacketHandler) onRecv(conn net.Conn, data []byte) error {
+func (p *PacketHandler) onRecv(socket *Socket, data []byte) error {
 	idx := 0
 	for idx < len(data) {
 		if p.process == read_size {
@@ -71,7 +70,7 @@ func (p *PacketHandler) onRecv(conn net.Conn, data []byte) error {
 				p.readPos++
 			}
 			if p.readPos == int(p.size) {
-				p.onRecv(conn, p.data)
+				p._onRecv(socket, p.data)
 				p.process = read_size
 				p.readPos = 0
 			}
@@ -81,6 +80,15 @@ func (p *PacketHandler) onRecv(conn net.Conn, data []byte) error {
 	return nil
 }
 
-func (p *PacketHandler) onDisc(conn net.Conn, err error) {
-	p._onDisc(conn, err)
+func (p *PacketHandler) onDisc(socket *Socket, err error) {
+	p._onDisc(socket, err)
+}
+
+func (p *PacketHandler) makePacket(buf []byte) []byte {
+	newBuf := make([]byte, 2+len(buf))
+	binary.LittleEndian.PutUint16(newBuf, uint16(len(buf)))
+	for i, d := range buf {
+		newBuf[i+2] = d
+	}
+	return newBuf
 }

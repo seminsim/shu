@@ -7,14 +7,16 @@ import (
 )
 
 type handler interface {
-	onConn(net.Conn)
-	onRecv(net.Conn, []byte) error
-	onDisc(net.Conn, error)
+	onConn(*Socket)
+	onRecv(*Socket, []byte) error
+	onDisc(*Socket, error)
+	makePacket([]byte) []byte
 }
 
 type Server struct {
-	conns   *sync.Map
-	handler handler
+	conns    *sync.Map
+	handler  handler
+	listener net.Listener
 }
 
 func NewServer(handler handler) *Server {
@@ -29,36 +31,41 @@ func (s *Server) Start(host string, port uint16) error {
 	if err != nil {
 		return err
 	}
-	defer l.Close()
+	s.listener = l
+	go handleListen(s)
+	return nil
+}
+
+func (s *Server) Close() error {
+	s.conns.Range(func(key, value interface{}) bool {
+		key.(*Socket).Close()
+		return true
+	})
+	return s.listener.Close()
+}
+
+func (s *Server) Broadcast(data []byte) {
+	s.conns.Range(func(key, value interface{}) bool {
+		key.(*Socket).Write(data)
+		return true
+	})
+}
+
+func handleListen(s *Server) {
 	for {
 		// Listen for an incoming connection.
-		conn, err := l.Accept()
+		conn, err := s.listener.Accept()
 		if err != nil {
-			return err
+			return
 		}
 		// Handle connections in a new goroutine.
-		go handleRequest(s, conn)
+		socket := newSocket(s, conn, s.handler)
+		s.conns.Store(socket, true)
+		socket.Start()
 	}
 }
 
-func handleRequest(s *Server, conn net.Conn) {
-	s.conns.Store(conn, true)
-	s.handler.onConn(conn)
-
-	// Make a buffer to hold incoming data.
-	buf := make([]byte, 1024)
-	for {
-		// Read the incoming connection into the buffer.
-		readLen, err := conn.Read(buf)
-		if err != nil {
-			s.conns.Delete(conn)
-			s.handler.onDisc(conn, err)
-			return
-		}
-		if err = s.handler.onRecv(conn, buf[:readLen]); err != nil {
-			s.conns.Delete(conn)
-			s.handler.onDisc(conn, err)
-			return
-		}
-	}
+func (s *Server) onDisc(socket *Socket, err error) {
+	s.conns.Delete(socket)
+	s.handler.onDisc(socket, err)
 }
