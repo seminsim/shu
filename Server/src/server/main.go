@@ -8,15 +8,19 @@ import (
 )
 
 const (
-	CONN_HOST = "localhost"
+	CONN_HOST = "0.0.0.0"
 	CONN_PORT = 3333
 )
 
 var server *shuNet.Server
 
 func main() {
-	server = shuNet.NewServer(shuNet.NewPacketHandler(onConn, onRecv, onDisc))
-	server.Start(CONN_HOST, CONN_PORT)
+	server = shuNet.NewServer(onConn, onRecv, onDisc)
+	err := server.Start(CONN_HOST, CONN_PORT)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {

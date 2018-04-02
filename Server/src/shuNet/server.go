@@ -6,23 +6,27 @@ import (
 	"sync"
 )
 
-type handler interface {
-	onConn(*Socket)
-	onRecv(*Socket, []byte) error
-	onDisc(*Socket, error)
-	makePacket([]byte) []byte
-}
-
 type Server struct {
-	conns    *sync.Map
-	handler  handler
-	listener net.Listener
+	conns     *sync.Map
+	RWHandler rwHandler
+	listener  net.Listener
+
+	connCallback func(*Socket)
+	recvCallback func(*Socket, []byte) error
+	discCallback func(*Socket, error)
 }
 
-func NewServer(handler handler) *Server {
+func NewServer(onConn func(*Socket),
+	onRecv func(*Socket, []byte) error,
+	onDisc func(*Socket, error)) *Server {
 	server := &Server{}
 	server.conns = new(sync.Map)
-	server.handler = handler
+
+	server.connCallback = onConn
+	server.recvCallback = onRecv
+	server.discCallback = onDisc
+
+	server.RWHandler = NewSizeRW(server)
 	return server
 }
 
@@ -45,8 +49,9 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) Broadcast(data []byte) {
+	buf := s.RWHandler.write(data)
 	s.conns.Range(func(key, value interface{}) bool {
-		key.(*Socket).Write(data)
+		key.(*Socket).write(buf)
 		return true
 	})
 }
@@ -59,13 +64,19 @@ func handleListen(s *Server) {
 			return
 		}
 		// Handle connections in a new goroutine.
-		socket := newSocket(s, conn, s.handler)
+		socket := newSocket(s, conn, s.RWHandler)
 		s.conns.Store(socket, true)
+
+		s.connCallback(socket)
 		socket.Start()
 	}
 }
 
+func (s *Server) onRecv(socket *Socket, data []byte) error {
+	return s.recvCallback(socket, data)
+}
+
 func (s *Server) onDisc(socket *Socket, err error) {
 	s.conns.Delete(socket)
-	s.handler.onDisc(socket, err)
+	s.discCallback(socket, err)
 }

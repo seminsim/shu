@@ -14,18 +14,16 @@ type socketOwner interface {
 // Socket is shuSocket
 type Socket struct {
 	conn      net.Conn
-	handler   handler
 	sendChan  chan []byte
 	owner     socketOwner
 	connected int32
+	rwHandler rwHandler
 }
 
-func newSocket(owner socketOwner, conn net.Conn, handler handler) *Socket {
-	socket := &Socket{owner: owner, conn: conn, handler: handler}
+func newSocket(owner socketOwner, conn net.Conn, rwHandler rwHandler) *Socket {
+	socket := &Socket{owner: owner, conn: conn, rwHandler: rwHandler}
 	socket.sendChan = make(chan []byte, 128)
 	atomic.StoreInt32(&socket.connected, 1)
-
-	socket.handler.onConn(socket)
 	return socket
 }
 
@@ -39,7 +37,11 @@ func (s *Socket) Close() error {
 }
 
 func (s *Socket) Write(buf []byte) {
-	s.sendChan <- s.handler.makePacket(buf)
+	s.sendChan <- s.rwHandler.write(buf)
+}
+
+func (s *Socket) write(buf []byte) {
+	s.sendChan <- buf
 }
 
 func (s *Socket) IsConnected() bool {
@@ -62,14 +64,22 @@ func handleRead(socket *Socket) {
 		socket.conn.SetReadDeadline(time.Now().Add(timeoutDuration))
 
 		readLen, err := socket.conn.Read(buf)
-		if err != nil && !err.(net.Error).Timeout() {
-			socket.onDisc(err)
-			return
+		if err != nil {
+			timeout := false
+			if netErr, ok := err.(net.Error); ok {
+				if netErr.Timeout() {
+					timeout = true
+				}
+			}
+			if !timeout {
+				socket.onDisc(err)
+				return
+			}
 		}
 		if readLen == 0 {
 			continue
 		}
-		if err = socket.handler.onRecv(socket, buf[:readLen]); err != nil {
+		if err = socket.rwHandler.onRecv(socket, buf[:readLen]); err != nil {
 			socket.onDisc(err)
 			return
 		}
