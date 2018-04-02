@@ -39,6 +39,7 @@ func onConn(socket *shuNet.Socket) {
 
 func onRecv(socket *shuNet.Socket, data []byte) error {
 	fmt.Println("OnRecv size:", len(data), " ", string(data))
+
 	server.Broadcast(data)
 	return nil
 }

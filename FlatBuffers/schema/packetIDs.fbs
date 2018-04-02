@@ -1,0 +1,8 @@
+// example save file
+
+namespace SHU;
+
+enum PacketID : ushort { 
+    Ping = 1, 
+    SyncTime, 
+}
