@@ -2,13 +2,19 @@ package shuNet
 
 import "encoding/binary"
 
-type readHandler interface {
-	onRecv(*Socket, []byte) error
+type ReadHandler interface {
+	onRecv(*Socket, interface{}) error
 }
 
-type rwHandler interface {
-	onRecv(*Socket, []byte) error
-	write([]byte) []byte
+type RWHandler interface {
+	onRecv(*Socket, interface{}) error
+	write(interface{}) interface{}
+}
+
+type readFunc func(*Socket, interface{}) error
+
+func (f readFunc) onRecv(socket *Socket, data interface{}) error {
+	return f(socket, data)
 }
 
 const (
@@ -17,7 +23,7 @@ const (
 )
 
 type SizeRW struct {
-	readHandler readHandler
+	readHandler ReadHandler
 
 	process int
 	sizeBuf []byte
@@ -26,8 +32,15 @@ type SizeRW struct {
 	readPos int
 }
 
-func NewSizeRW(readHandler readHandler) *SizeRW {
+func NewSizeRW(readHandler ReadHandler) *SizeRW {
 	rw := &SizeRW{readHandler: readHandler}
+	rw.sizeBuf = make([]byte, 2)
+	rw.process = readSize
+	return rw
+}
+
+func NewSizeRWCB(recvCB func(*Socket, interface{}) error) *SizeRW {
+	rw := &SizeRW{readHandler: readFunc(recvCB)}
 	rw.sizeBuf = make([]byte, 2)
 	rw.process = readSize
 	return rw
@@ -41,12 +54,13 @@ func (e *errorString) Error() string {
 	return e.s
 }
 
-func (p *SizeRW) onRecv(socket *Socket, data []byte) error {
+func (p *SizeRW) onRecv(socket *Socket, data interface{}) error {
+	buf := data.([]byte)
 	idx := 0
-	for idx < len(data) {
+	for idx < len(buf) {
 		if p.process == readSize {
-			for ; idx < len(data) && p.readPos < 2; idx++ {
-				p.sizeBuf[p.readPos] = data[idx]
+			for ; idx < len(buf) && p.readPos < 2; idx++ {
+				p.sizeBuf[p.readPos] = buf[idx]
 				p.readPos++
 			}
 			if p.readPos == 2 {
@@ -59,8 +73,8 @@ func (p *SizeRW) onRecv(socket *Socket, data []byte) error {
 				p.data = make([]byte, p.size)
 			}
 		} else {
-			for ; idx < len(data) && p.readPos < int(p.size); idx++ {
-				p.data[p.readPos] = data[idx]
+			for ; idx < len(buf) && p.readPos < int(p.size); idx++ {
+				p.data[p.readPos] = buf[idx]
 				p.readPos++
 			}
 			if p.readPos == int(p.size) {
@@ -74,7 +88,8 @@ func (p *SizeRW) onRecv(socket *Socket, data []byte) error {
 	return nil
 }
 
-func (p *SizeRW) write(buf []byte) []byte {
+func (p *SizeRW) write(data interface{}) interface{} {
+	buf := data.([]byte)
 	newBuf := make([]byte, 2+len(buf))
 	binary.LittleEndian.PutUint16(newBuf, uint16(len(buf)))
 	for i, d := range buf {

@@ -17,10 +17,10 @@ type Socket struct {
 	sendChan  chan []byte
 	owner     socketOwner
 	connected int32
-	rwHandler rwHandler
+	rwHandler RWHandler
 }
 
-func newSocket(owner socketOwner, conn net.Conn, rwHandler rwHandler) *Socket {
+func newSocket(owner socketOwner, conn net.Conn, rwHandler RWHandler) *Socket {
 	socket := &Socket{owner: owner, conn: conn, rwHandler: rwHandler}
 	socket.sendChan = make(chan []byte, 128)
 	atomic.StoreInt32(&socket.connected, 1)
@@ -36,8 +36,9 @@ func (s *Socket) Close() error {
 	return s.conn.Close()
 }
 
-func (s *Socket) Write(buf []byte) {
-	s.sendChan <- s.rwHandler.write(buf)
+func (s *Socket) Write(data interface{}) {
+	rst := s.rwHandler.write(data)
+	s.sendChan <- rst.([]byte)
 }
 
 func (s *Socket) write(buf []byte) {

@@ -13,7 +13,7 @@ const (
 )
 
 func main() {
-	client := shuNet.NewClient(onConn, onRecv, onDisc)
+	client := shuNet.NewClient(onConn, onDisc, shuNet.NewPacketRWCB(onRecv))
 	err := client.Dial(CONN_HOST, CONN_PORT)
 	if err != nil {
 		fmt.Println(err)
@@ -26,7 +26,7 @@ func main() {
 		if str == "exit" {
 			break
 		}
-		client.Write([]byte(str))
+		client.Write(shuNet.PacketInfo{PacketID: 1, Data: []byte(str)})
 	}
 
 	client.Close()
@@ -36,8 +36,9 @@ func onConn(socket *shuNet.Socket) {
 	fmt.Println("OnConnect ", socket)
 }
 
-func onRecv(socket *shuNet.Socket, data []byte) error {
-	fmt.Println("OnRecv size:", len(data), " ", string(data))
+func onRecv(socket *shuNet.Socket, data interface{}) error {
+	pkt := data.(shuNet.PacketInfo)
+	fmt.Println("OnRecv packetID:", pkt.PacketID, " data size:", len(pkt.Data), " ", string(pkt.Data))
 	return nil
 }
 

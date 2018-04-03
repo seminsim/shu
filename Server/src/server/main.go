@@ -15,7 +15,7 @@ const (
 var server *shuNet.Server
 
 func main() {
-	server = shuNet.NewServer(onConn, onRecv, onDisc)
+	server = shuNet.NewServer(onConn, onDisc, shuNet.NewPacketRWCB(onRecv))
 	err := server.Start(CONN_HOST, CONN_PORT)
 	if err != nil {
 		fmt.Println(err)
@@ -37,10 +37,11 @@ func onConn(socket *shuNet.Socket) {
 	fmt.Println("OnConnect ", socket)
 }
 
-func onRecv(socket *shuNet.Socket, data []byte) error {
-	fmt.Println("OnRecv size:", len(data), " ", string(data))
+func onRecv(socket *shuNet.Socket, data interface{}) error {
+	pkt := data.(shuNet.PacketInfo)
+	fmt.Println("OnRecv packetID:", pkt.PacketID, " data size:", len(pkt.Data), " ", string(pkt.Data))
 
-	server.Broadcast(data)
+	server.Broadcast(pkt)
 	return nil
 }
 
