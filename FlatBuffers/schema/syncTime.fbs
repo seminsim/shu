@@ -1,0 +1,18 @@
+//
+// Ping
+// This schema defines all the user Ping objects.
+// By defining user Ping schema as FlatBuffers
+//  , we are able to deliver Ping sets over the internet
+//  or save into a file / reload to replay the gameplay though serialization/deserialization capability.
+//
+// Author: VongSik Kong (kongbong23@gmail.com)
+//
+
+namespace SHU.FlatBuffers.Ping;
+
+table SyncTime {
+  serverTime:long;
+}
+
+root_type SyncTime;
+file_identifier "sync";

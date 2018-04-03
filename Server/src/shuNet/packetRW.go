@@ -38,11 +38,11 @@ func (p *PacketRW) internalOnRecv(socket *Socket, data interface{}) error {
 		return &errorString{"packet size should be more 2 bytes."}
 	}
 	packetID := binary.LittleEndian.Uint16(buf[:2])
-	return p.readHandler.onRecv(socket, PacketInfo{packetID, buf[2:]})
+	return p.readHandler.onRecv(socket, &PacketInfo{PacketID: packetID, Data: buf[2:]})
 }
 
 func (p *PacketRW) write(data interface{}) interface{} {
-	pkt := data.(PacketInfo)
+	pkt := data.(*PacketInfo)
 	newBuf := make([]byte, len(pkt.Data)+2)
 	binary.LittleEndian.PutUint16(newBuf, pkt.PacketID)
 	for i, d := range pkt.Data {

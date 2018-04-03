@@ -11,7 +11,8 @@ using global::FlatBuffers;
 public enum PacketID : ushort
 {
  Ping = 1,
- SyncTime = 2,
+ Pong = 2,
+ SyncTime = 3,
 };
 
 

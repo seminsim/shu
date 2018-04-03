@@ -3,12 +3,14 @@ package shuNet
 import (
 	"net"
 	"strconv"
+	"sync"
 )
 
 // Client is client handler for Networking
 type Client struct {
 	socket    *Socket
 	rwHandler RWHandler
+	mutex     *sync.Mutex
 
 	connCallback func(*Socket)
 	discCallback func(*Socket, error)
@@ -19,6 +21,8 @@ func NewClient(onConn func(*Socket),
 	onDisc func(*Socket, error),
 	rwHandler RWHandler) *Client {
 	client := &Client{rwHandler: rwHandler}
+	client.mutex = &sync.Mutex{}
+
 	client.connCallback = onConn
 	client.discCallback = onDisc
 	return client
@@ -29,6 +33,9 @@ func (c *Client) Dial(host string, port uint16) error {
 	if err != nil {
 		return err
 	}
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	c.socket = newSocket(c, conn, c.rwHandler)
 	c.connCallback(c.socket)
 	c.socket.Start()
@@ -36,14 +43,28 @@ func (c *Client) Dial(host string, port uint16) error {
 }
 
 func (c *Client) onDisc(socket *Socket, err error) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	c.socket = nil
 	c.discCallback(socket, err)
 }
 
 func (c *Client) Close() error {
-	return c.socket.Close()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if c.socket != nil {
+		return c.socket.Close()
+	}
+	return nil
 }
 
 func (c *Client) Write(data interface{}) {
-	c.socket.Write(data)
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if c.socket != nil {
+		c.socket.Write(data)
+	}
 }
