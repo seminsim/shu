@@ -1,0 +1,25 @@
+//
+// Input
+// This schema defines all the user input objects.
+// By defining user input schema as FlatBuffers
+//  , we are able to deliver input sets over the internet
+//  or save into a file / reload to replay the gameplay though serialization/deserialization capability.
+//
+// Author: Semin Sim (seminsim@gmail.com)
+//
+
+namespace SHU.FlatBuffers.Input;
+
+enum KeyboardAction : byte { Stay = 1, KeyDown, KeyUp }
+
+table PlayerMovement {
+  objectId:uint;
+  keyUp:KeyboardAction;
+  keyDown:KeyboardAction;
+  keyLeft:KeyboardAction;
+  keyRight:KeyboardAction;
+  direction:int;  // degree * 1000
+}
+
+root_type PlayerMovement;
+file_identifier "plmv";
