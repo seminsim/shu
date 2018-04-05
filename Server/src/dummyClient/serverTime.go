@@ -32,3 +32,7 @@ func (st *ServerTime) OnRecvPong(clientTime int64, serverTime int64) {
 func (st *ServerTime) GetServerTime(clientTime int64) int64 {
 	return clientTime - st.diffTime + int64(st.rttTime/2)
 }
+
+func (st *ServerTime) GetClientTime(serverTime int64) int64 {
+	return serverTime + st.diffTime - int64(st.rttTime/2)
+}
