@@ -7,6 +7,9 @@ import (
 	"time"
 )
 
+// SocketWriteWaitTime represents how long wait for sending
+var SocketWriteWaitTime time.Duration = 30 * time.Millisecond
+
 type socketOwner interface {
 	onDisc(*Socket, error)
 }
@@ -93,7 +96,7 @@ func handleWrite(socket *Socket) {
 		select {
 		case packet := <-socket.sendChan:
 			buf.Write(packet)
-		case <-time.After(30 * time.Millisecond):
+		case <-time.After(SocketWriteWaitTime):
 			if buf.Len() > 0 {
 				writeLen, err := socket.conn.Write(buf.Bytes())
 				if writeLen != buf.Len() || err != nil {

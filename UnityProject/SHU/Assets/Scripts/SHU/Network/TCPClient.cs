@@ -109,7 +109,7 @@ namespace SHU {
             return;
           }
           try {       
-            Send (new PacketData (PacketID.Ping, BitConverter.GetBytes (DateTime.Now.ToFileTimeUtc ())));
+            Send (new PacketData (PacketID.Ping, BitConverter.GetBytes (ServerTime.GetNowUnixTime())));
           } catch (Exception) {
             return;
           }

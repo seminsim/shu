@@ -75,7 +75,7 @@ func onRecv(socket *shuNet.Socket, data interface{}) error {
 		st := int64(binary.LittleEndian.Uint64(pkt.Data[8:]))
 
 		serverTime.OnRecvPong(ct, st)
-		fmt.Println("Ping RTT=", serverTime.rttTime/float64(time.Millisecond.Nanoseconds()), " Diff=", serverTime.diffTime)
+		fmt.Println("Ping RTT=", serverTime.rttTime, " Diff=", serverTime.diffTime)
 	}
 
 	return nil

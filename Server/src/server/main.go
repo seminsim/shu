@@ -18,6 +18,7 @@ const (
 var server *shuNet.Server
 
 func main() {
+	//shuNet.SocketWriteWaitTime = 1 * time.Millisecond
 	server = shuNet.NewServer(onConn, onDisc, shuNet.NewSizeRW(shuNet.NewPacketRW(onRecv)))
 	err := server.Start(CONN_HOST, CONN_PORT)
 	if err != nil {
@@ -39,7 +40,7 @@ func main() {
 func onConn(socket *shuNet.Socket) {
 	fmt.Println("OnConnect ", socket)
 
-	buf := MakeSyncTime(time.Now().UnixNano())
+	buf := MakeSyncTime(time.Now().UnixNano() / 100)
 	socket.Write(&shuNet.PacketInfo{PacketID: protocol.PacketIDSyncTime, Data: buf})
 }
 
