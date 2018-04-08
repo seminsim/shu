@@ -17,3 +17,4 @@ src/*
 !src/dummyClient/
 !src/shuNet/
 !src/flatbuffers/
+!src/protocol/

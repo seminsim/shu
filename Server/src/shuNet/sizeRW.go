@@ -23,7 +23,7 @@ const (
 )
 
 type SizeRW struct {
-	readHandler ReadHandler
+	rwHandler RWHandler
 
 	process int
 	sizeBuf []byte
@@ -32,15 +32,8 @@ type SizeRW struct {
 	readPos int
 }
 
-func NewSizeRW(readHandler ReadHandler) *SizeRW {
-	rw := &SizeRW{readHandler: readHandler}
-	rw.sizeBuf = make([]byte, 2)
-	rw.process = readSize
-	return rw
-}
-
-func NewSizeRWCB(recvCB func(*Socket, interface{}) error) *SizeRW {
-	rw := &SizeRW{readHandler: readFunc(recvCB)}
+func NewSizeRW(rwHandler RWHandler) *SizeRW {
+	rw := &SizeRW{rwHandler: rwHandler}
 	rw.sizeBuf = make([]byte, 2)
 	rw.process = readSize
 	return rw
@@ -78,7 +71,7 @@ func (p *SizeRW) onRecv(socket *Socket, data interface{}) error {
 				p.readPos++
 			}
 			if p.readPos == int(p.size) {
-				p.readHandler.onRecv(socket, p.data)
+				p.rwHandler.onRecv(socket, p.data)
 				p.process = readSize
 				p.readPos = 0
 			}
@@ -89,7 +82,7 @@ func (p *SizeRW) onRecv(socket *Socket, data interface{}) error {
 }
 
 func (p *SizeRW) write(data interface{}) interface{} {
-	buf := data.([]byte)
+	buf := p.rwHandler.write(data).([]byte)
 	newBuf := make([]byte, 2+len(buf))
 	binary.LittleEndian.PutUint16(newBuf, uint16(len(buf)))
 	for i, d := range buf {

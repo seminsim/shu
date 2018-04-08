@@ -24,7 +24,7 @@ func main() {
 	builder = flatbuffers.NewBuilder(0)
 	serverTime = &ServerTime{}
 
-	client = shuNet.NewClient(onConn, onDisc, shuNet.NewPacketRWCB(onRecv))
+	client = shuNet.NewClient(onConn, onDisc, shuNet.NewSizeRW(shuNet.NewPacketRW(onRecv)))
 	err := client.Dial(CONN_HOST, CONN_PORT)
 	if err != nil {
 		fmt.Println(err)

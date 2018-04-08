@@ -20,7 +20,7 @@ var server *shuNet.Server
 var builder *flatbuffers.Builder
 
 func main() {
-	server = shuNet.NewServer(onConn, onDisc, shuNet.NewPacketRWCB(onRecv))
+	server = shuNet.NewServer(onConn, onDisc, shuNet.NewSizeRW(shuNet.NewPacketRW(onRecv)))
 	builder = flatbuffers.NewBuilder(0)
 	err := server.Start(CONN_HOST, CONN_PORT)
 	if err != nil {

@@ -9,30 +9,14 @@ type PacketInfo struct {
 
 type PacketRW struct {
 	readHandler ReadHandler
-	rwHandler   RWHandler
 }
 
-func NewPacketRW(readHandler ReadHandler) *PacketRW {
-	rw := &PacketRW{readHandler: readHandler}
-	rw.rwHandler = NewSizeRWCB(func(socket *Socket, data interface{}) error {
-		return rw.internalOnRecv(socket, data)
-	})
-	return rw
-}
-
-func NewPacketRWCB(recvCB func(*Socket, interface{}) error) *PacketRW {
-	rw := &PacketRW{readHandler: readFunc(recvCB)}
-	rw.rwHandler = NewSizeRWCB(func(socket *Socket, data interface{}) error {
-		return rw.internalOnRecv(socket, data)
-	})
+func NewPacketRW(onrecv func(*Socket, interface{}) error) *PacketRW {
+	rw := &PacketRW{readHandler: readFunc(onrecv)}
 	return rw
 }
 
 func (p *PacketRW) onRecv(socket *Socket, data interface{}) error {
-	return p.rwHandler.onRecv(socket, data)
-}
-
-func (p *PacketRW) internalOnRecv(socket *Socket, data interface{}) error {
 	buf := data.([]byte)
 	if len(buf) < 2 {
 		return &errorString{"packet size should be more 2 bytes."}
@@ -48,5 +32,5 @@ func (p *PacketRW) write(data interface{}) interface{} {
 	for i, d := range pkt.Data {
 		newBuf[i+2] = d
 	}
-	return p.rwHandler.write(newBuf)
+	return newBuf
 }
