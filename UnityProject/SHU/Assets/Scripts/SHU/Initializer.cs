@@ -9,6 +9,7 @@ namespace SHU {
   	// Use this for initialization
   	void Awake () {
   		var instance = StaticComponent<SHU.DeveloperConsole>.Instance;
+      var serverTime = StaticComponent<Network.ServerTime>.Instance;
   		instance.RegisterCommand("Connect", new ConsoleCommand(
   			(x) => {
   				if (x.Length < 2)
@@ -33,7 +34,7 @@ namespace SHU {
   					return "Error - Send <Msg>";
   				}
 
-          StaticComponent<Network.TCPClient>.Instance.Send(new Network.PacketData(1, Encoding.UTF8.GetBytes(x[0])));
+          StaticComponent<Network.TCPClient>.Instance.Send(new Network.PacketData(PacketID.Log, Encoding.UTF8.GetBytes(x[0])));
   				return "Send Msg:" + x [0];
   			},
   			"Send <Msg> - Send msg to server"

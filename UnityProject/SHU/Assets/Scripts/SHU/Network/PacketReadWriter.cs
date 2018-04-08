@@ -4,10 +4,10 @@ using UnityEngine;
 namespace SHU {
   namespace Network { 
     public class PacketData {
-      public UInt16 packetID;
+      public PacketID packetID;
       public byte[] data;
 
-      public PacketData (UInt16 packetID, byte[] data) {
+      public PacketData (PacketID packetID, byte[] data) {
         this.packetID = packetID;
         this.data = data;
       }
@@ -31,13 +31,13 @@ namespace SHU {
           Array.Copy(buf.buf, 2, packetData, 0, buf.length - 2);
         }
 
-        onRecv (new PacketData (packetID, packetData));
+        onRecv (new PacketData ((PacketID)packetID, packetData));
       }
 
       public object Write(object data) {
         PacketData packet = data as PacketData;
         byte[] newBuf = new byte[2 + packet.data.Length];
-        Array.Copy(BitConverter.GetBytes(packet.packetID), 0, newBuf, 0, 2);
+        Array.Copy(BitConverter.GetBytes((ushort)packet.packetID), 0, newBuf, 0, 2);
         Array.Copy(packet.data, 0, newBuf, 2, packet.data.Length);
         return newBuf;
       }

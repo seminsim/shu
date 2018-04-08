@@ -6,4 +6,5 @@ enum PacketID : ushort {
     Ping = 1, 
     Pong, 
     SyncTime, 
+    Log,
 }

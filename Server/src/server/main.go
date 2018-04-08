@@ -2,13 +2,12 @@ package main
 
 import (
 	"bufio"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"protocol"
 	"shuNet"
 	"time"
-
-	"github.com/google/flatbuffers/go"
 )
 
 const (
@@ -17,11 +16,9 @@ const (
 )
 
 var server *shuNet.Server
-var builder *flatbuffers.Builder
 
 func main() {
 	server = shuNet.NewServer(onConn, onDisc, shuNet.NewSizeRW(shuNet.NewPacketRW(onRecv)))
-	builder = flatbuffers.NewBuilder(0)
 	err := server.Start(CONN_HOST, CONN_PORT)
 	if err != nil {
 		fmt.Println(err)
@@ -42,22 +39,14 @@ func main() {
 func onConn(socket *shuNet.Socket) {
 	fmt.Println("OnConnect ", socket)
 
-	buf := MakeSyncTime(builder, time.Now().UnixNano())
+	buf := MakeSyncTime(time.Now().UnixNano())
 	socket.Write(&shuNet.PacketInfo{PacketID: protocol.PacketIDSyncTime, Data: buf})
 }
 
-func MakeSyncTime(b *flatbuffers.Builder, serverTime int64) []byte {
-	// re-use the already-allocated Builder:
-	b.Reset()
-
-	protocol.SyncTimeStart(b)
-	protocol.SyncTimeAddServerTime(b, serverTime)
-	sync := protocol.SyncTimeEnd(b)
-
-	b.Finish(sync)
-
-	// return the byte slice containing encoded data:
-	return b.FinishedBytes()
+func MakeSyncTime(serverTime int64) []byte {
+	buf := make([]byte, 16)
+	binary.LittleEndian.PutUint64(buf, uint64(serverTime))
+	return buf
 }
 
 func onRecv(socket *shuNet.Socket, data interface{}) error {
@@ -65,10 +54,9 @@ func onRecv(socket *shuNet.Socket, data interface{}) error {
 	fmt.Println("OnRecv packetID:", pkt.PacketID, " data size:", len(pkt.Data))
 
 	if pkt.PacketID == protocol.PacketIDPing {
-		ping := protocol.GetRootAsPing(pkt.Data, 0)
-		clientTime := ping.ClientTime()
+		clientTime := int64(binary.LittleEndian.Uint64(pkt.Data))
 
-		buf := MakePong(builder, clientTime, time.Now().UnixNano())
+		buf := MakePong(clientTime, time.Now().UnixNano())
 		socket.Write(&shuNet.PacketInfo{PacketID: protocol.PacketIDPong, Data: buf})
 	} else {
 		server.Broadcast(pkt)
@@ -76,19 +64,13 @@ func onRecv(socket *shuNet.Socket, data interface{}) error {
 	return nil
 }
 
-func MakePong(b *flatbuffers.Builder, clientTime int64, serverTime int64) []byte {
-	// re-use the already-allocated Builder:
-	b.Reset()
-
-	protocol.PongStart(b)
-	protocol.PongAddClientTime(b, clientTime)
-	protocol.PongAddServerTime(b, serverTime)
-	pong := protocol.PongEnd(b)
-
-	b.Finish(pong)
+func MakePong(clientTime int64, serverTime int64) []byte {
+	buf := make([]byte, 16)
+	binary.LittleEndian.PutUint64(buf, uint64(clientTime))
+	binary.LittleEndian.PutUint64(buf[8:], uint64(serverTime))
 
 	// return the byte slice containing encoded data:
-	return b.FinishedBytes()
+	return buf
 }
 
 func onDisc(socket *shuNet.Socket, err error) {

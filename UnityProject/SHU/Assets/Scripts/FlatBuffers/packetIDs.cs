@@ -13,6 +13,7 @@ public enum PacketID : ushort
  Ping = 1,
  Pong = 2,
  SyncTime = 3,
+ Log = 4,
 };
 
 

@@ -12,9 +12,11 @@ namespace SHU {
     	#region private members 	
     	private TcpClient socketConnection; 	
     	private Thread clientReceiveThread;
+      private Thread pingThread;
     	private bool isConnected = false;
     	private bool disconnected = false;
-    	private System.Object thisLock = new System.Object();  
+    	private System.Object thisLock = new System.Object();
+      private AutoResetEvent closeEvent = new AutoResetEvent(false);
     	#endregion
 
     	public delegate void OnDisconnectHandler();
@@ -27,9 +29,13 @@ namespace SHU {
       public TCPClient() {
         readWriter = new SizeReadWriter (new PacketReadWriter (
           (packet) => {
-            Debug.Log(string.Format("Recved Packet ID:{0} size:{1} msg:{2}", 
-              packet.packetID, packet.data.Length, Encoding.UTF8.GetString(packet.data)));    
-            RecvedPackets.Enqueue(packet);
+            if (packet.packetID == PacketID.SyncTime || packet.packetID == PacketID.Pong) {
+              StaticComponent<ServerTime>.Instance.OnRecvTimePacket(packet);
+            } else {
+              Debug.Log(string.Format("Recved Packet ID:{0} size:{1} msg:{2}", 
+                packet.packetID, packet.data.Length, Encoding.UTF8.GetString(packet.data)));
+              RecvedPackets.Enqueue(packet);
+            }
           }));
 
       }
@@ -43,6 +49,7 @@ namespace SHU {
     			lock (thisLock) {
     				if (disconnected) {
     					socketConnection = null;
+              closeEvent.Set ();
               RecvedPackets.Clear ();
               if (OnDisconnectEvent != null) {
                 OnDisconnectEvent.Invoke ();
@@ -61,7 +68,11 @@ namespace SHU {
     			clientReceiveThread = new Thread (new ThreadStart(ListenForData)); 			
     			clientReceiveThread.IsBackground = true; 			
     			clientReceiveThread.Start(); 
-    		} 		
+
+          pingThread = new Thread (new ThreadStart(pingHandler));      
+          pingThread.IsBackground = true;      
+          pingThread.Start(); 
+        } 		
     		catch (Exception e) { 			
     			Debug.Log("On client connect exception " + e); 		
     			lock (thisLock) {
@@ -91,12 +102,25 @@ namespace SHU {
     			}
     		}     
     	}
+
+      private void pingHandler() {
+        while (true) {        
+          if (closeEvent.WaitOne (1000)) {
+            return;
+          }
+          try {       
+            Send (new PacketData (PacketID.Ping, BitConverter.GetBytes (DateTime.Now.ToFileTimeUtc ())));
+          } catch (Exception) {
+            return;
+          }
+        }
+      }
  
     	private void OnRecvData(Byte[] bytes, int length) {
         readWriter.Read(new BufData(length, bytes));
     	}
 
-    	public void Send(object data) {         
+      public void Send(PacketData data) {         
     		if (socketConnection == null) {             
     			return;         
     		}
@@ -108,8 +132,7 @@ namespace SHU {
     				// Write byte array to socketConnection stream.                 
     				stream.Write(newArr, 0, newArr.Length);
     			}         
-    		} 		
-    		catch (Exception exception) {             
+    		} catch (Exception exception) {             
     			Debug.Log("Socket exception: " + exception);         
     		}     
     	}

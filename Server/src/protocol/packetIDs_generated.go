@@ -6,10 +6,12 @@ const (
 	PacketIDPing     = 1
 	PacketIDPong     = 2
 	PacketIDSyncTime = 3
+	PacketIDLog      = 4
 )
 
 var EnumNamesPacketID = map[int]string{
 	PacketIDPing:     "Ping",
 	PacketIDPong:     "Pong",
 	PacketIDSyncTime: "SyncTime",
+	PacketIDLog:      "Log",
 }

@@ -2,13 +2,12 @@ package main
 
 import (
 	"bufio"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"protocol"
 	"shuNet"
 	"time"
-
-	flatbuffers "github.com/google/flatbuffers/go"
 )
 
 const (
@@ -18,10 +17,8 @@ const (
 
 var serverTime *ServerTime
 var client *shuNet.Client
-var builder *flatbuffers.Builder
 
 func main() {
-	builder = flatbuffers.NewBuilder(0)
 	serverTime = &ServerTime{}
 
 	client = shuNet.NewClient(onConn, onDisc, shuNet.NewSizeRW(shuNet.NewPacketRW(onRecv)))
@@ -61,7 +58,7 @@ func pingHandler() {
 
 func sendPing() {
 	fmt.Println("sendPing")
-	buf := MakePing(builder, time.Now().UnixNano())
+	buf := MakePing(time.Now().UnixNano())
 	client.Write(&shuNet.PacketInfo{PacketID: protocol.PacketIDPing, Data: buf})
 }
 
@@ -70,14 +67,12 @@ func onRecv(socket *shuNet.Socket, data interface{}) error {
 	fmt.Println("OnRecv packetID:", pkt.PacketID, " data size:", len(pkt.Data))
 
 	if pkt.PacketID == protocol.PacketIDSyncTime {
-		syncTime := protocol.GetRootAsSyncTime(pkt.Data, 0)
-		st := syncTime.ServerTime()
+		st := int64(binary.LittleEndian.Uint64(pkt.Data))
 		serverTime.OnRecvSyncTime(st)
 
 	} else if pkt.PacketID == protocol.PacketIDPong {
-		pong := protocol.GetRootAsPong(pkt.Data, 0)
-		ct := pong.ClientTime()
-		st := pong.ServerTime()
+		ct := int64(binary.LittleEndian.Uint64(pkt.Data))
+		st := int64(binary.LittleEndian.Uint64(pkt.Data[8:]))
 
 		serverTime.OnRecvPong(ct, st)
 		fmt.Println("Ping RTT=", serverTime.rttTime/float64(time.Millisecond.Nanoseconds()), " Diff=", serverTime.diffTime)
@@ -86,17 +81,10 @@ func onRecv(socket *shuNet.Socket, data interface{}) error {
 	return nil
 }
 
-func MakePing(b *flatbuffers.Builder, clientTime int64) []byte {
-	// re-use the already-allocated Builder:
-	b.Reset()
-
-	protocol.PingStart(b)
-	protocol.PingAddClientTime(b, clientTime)
-	ping := protocol.PingEnd(b)
-	b.Finish(ping)
-
-	// return the byte slice containing encoded data:
-	return b.FinishedBytes()
+func MakePing(clientTime int64) []byte {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(clientTime))
+	return buf
 }
 
 func onDisc(socket *shuNet.Socket, err error) {
