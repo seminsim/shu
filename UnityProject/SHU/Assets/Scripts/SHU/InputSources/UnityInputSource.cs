@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using FlatBuffers;
-using NUnit.Framework;
 using SHU.FlatBuffers.Input;
 using SHU.Sim.InputEvents;
 using UnityEngine;
